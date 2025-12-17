@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Menu, User, Globe, LogOut, LayoutDashboard } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -59,8 +60,14 @@ export default function Navbar() {
                 <div className="flex justify-between items-center h-20">
                     {/* Logo */}
                     <div className="flex-shrink-0 flex items-center">
-                        <Link href="/" className="flex items-center gap-2">
-                            <span className="text-[#FF385C] text-2xl font-bold">Smart Laundry</span>
+                        <Link href="/" className="flex items-center">
+                            <Image
+                                src="/logo.png"
+                                alt="Smart Laundry Logo"
+                                width={120}
+                                height={20}
+                                className="object-contain"
+                            />
                         </Link>
                     </div>
 
@@ -69,9 +76,6 @@ export default function Navbar() {
                         <Link href="/" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
                             Home
                         </Link>
-                        <button className="text-gray-900 border-b-2 border-black px-3 py-2 text-sm font-medium">
-                            Services
-                        </button>
                         <Link href="/track" className="text-gray-500 hover:text-gray-900 px-3 py-2 text-sm font-medium">
                             Track Order
                         </Link>
