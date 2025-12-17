@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for User Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=laundry_user
+      - POSTGRES_PASSWORD=laundry_pass
+      - POSTGRES_DB=laundry_users
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - laundry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U laundry_user -d laundry_users"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB Database for Laundry Service
+  mongodb:
+    image: mongo:6
+    platform: linux/amd64
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=laundry_admin
+      - MONGO_INITDB_ROOT_PASSWORD=laundry_secret
+      - MONGO_INITDB_DATABASE=laundry_orders
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - laundry-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # User Service (REST API with PostgreSQL)
+  user-service:
+    build: ./services/user-service
+    container_name: user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://laundry_user:laundry_pass@postgres:5432/laundry_users
+    volumes:
+      - ./keys:/app/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - laundry-network
+
+  # Laundry Service (GraphQL API with MongoDB)
+  laundry-service:
+    build: ./services/laundry-service
+    container_name: laundry-service
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://laundry_admin:laundry_secret@mongodb:27017/laundry_orders?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - laundry-network
+
+  # Store Service (GraphQL API with MongoDB)
+  store-service:
+    build: ./services/store-service
+    container_name: store-service
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://laundry_admin:laundry_secret@mongodb:27017/laundry_stores?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - laundry-network
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - REST_API_URL=http://user-service:3001
+      - GRAPHQL_API_URL=http://laundry-service:4000
+      - NODE_ENV=development
+    depends_on:
+      - user-service
+      - laundry-service
+    networks:
+      - laundry-network
+
+  # Frontend Application
+  frontend-app:
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+    container_name: frontend-app
+    ports:
+      - "3002:3000"
+    environment:
+      - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:3000/graphql
+    depends_on:
+      - api-gateway
+    networks:
+      - laundry-network
+
+volumes:
+  postgres_data:
+  mongodb_data:
+
+networks:
+  laundry-network:
+    driver: bridge
