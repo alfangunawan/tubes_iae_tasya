@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,10 +35,13 @@ export default function LoginPage() {
             localStorage.setItem('token', data.token);
             localStorage.setItem('user', JSON.stringify(data.user));
 
+            toast.success('Login successful! Welcome back.');
+
             // Force reload to update Navbar state (simple approach)
             window.location.href = '/';
         } catch (err: any) {
             setError(err.message);
+            toast.error(err.message || 'Login failed');
         } finally {
             setLoading(false);
         }

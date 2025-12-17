@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import { Star, MapPin, Share, Heart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 // Use basic fetch for simplicity (or can add Apollo Client)
 async function fetchStore(id: string) {
@@ -77,13 +78,13 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
     const handleBooking = async () => {
         const token = localStorage.getItem('token');
         if (!token) {
-            alert('Please login to book');
+            toast.error('Please login to book');
             router.push('/login');
             return;
         }
 
         if (!selectedService || !date) {
-            alert('Please select a date and service');
+            toast.warning('Please select a date and service');
             return;
         }
 
@@ -92,7 +93,7 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
         try {
             userInfo = JSON.parse(atob(token.split('.')[1]));
         } catch (err) {
-            alert('Invalid session. Please login again.');
+            toast.error('Invalid session. Please login again.');
             router.push('/login');
             return;
         }
@@ -140,11 +141,11 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
                 throw new Error(errors[0].message);
             }
 
-            alert(`Booking successful! Total: Rp ${data.createBooking.totalPrice.toLocaleString()}`);
+            toast.success(`Booking successful! Total: Rp ${data.createBooking.totalPrice.toLocaleString()}`);
             router.push('/track');
 
         } catch (err: any) {
-            alert('Booking failed: ' + err.message);
+            toast.error('Booking failed: ' + err.message);
         }
     };
 
