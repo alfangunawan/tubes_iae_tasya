@@ -82,19 +82,33 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
             return;
         }
 
-        if (!selectedService) return;
+        if (!selectedService || !date) {
+            alert('Please select a date and service');
+            return;
+        }
+
+        // Decode token to get user info
+        let userInfo;
+        try {
+            userInfo = JSON.parse(atob(token.split('.')[1]));
+        } catch (err) {
+            alert('Invalid session. Please login again.');
+            router.push('/login');
+            return;
+        }
 
         const mutation = `
-      mutation CreateOrder($input: CreateOrderInput!) {
-        createOrder(input: $input) {
-          id
-          status
-        }
-      }
-    `;
+            mutation CreateBooking($input: CreateBookingInput!) {
+                createBooking(input: $input) {
+                    id
+                    status
+                    totalPrice
+                }
+            }
+        `;
 
         try {
-            const res = await fetch('http://localhost:3000/graphql', {
+            const res = await fetch('http://localhost:3000/graphql-booking', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -104,12 +118,17 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
                     query: mutation,
                     variables: {
                         input: {
+                            userId: userInfo.id,
+                            userName: userInfo.name,
+                            userEmail: userInfo.email,
                             storeId: store.id,
                             storeName: store.name,
                             serviceType: selectedService.type,
+                            serviceLabel: selectedService.label,
                             weight: weight,
-                            price: selectedService.price * weight, // Calculate price here
-                            notes: `Check-in: ${date}`
+                            pricePerKg: selectedService.price,
+                            checkInDate: date,
+                            notes: ''
                         }
                     }
                 })
@@ -121,8 +140,8 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
                 throw new Error(errors[0].message);
             }
 
-            alert('Booking successful!');
-            router.push('/profile');
+            alert(`Booking successful! Total: Rp ${data.createBooking.totalPrice.toLocaleString()}`);
+            router.push('/track');
 
         } catch (err: any) {
             alert('Booking failed: ' + err.message);

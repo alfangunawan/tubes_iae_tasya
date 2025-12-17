@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database for User Service
+  # PostgreSQL Database for User Service & Store Service
   postgres:
     image: postgres:15-alpine
     container_name: postgres-db
@@ -21,7 +21,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # MongoDB Database for Laundry Service
+  # MongoDB Database for Laundry Service & Booking Service
   mongodb:
     image: mongo:6
     platform: linux/amd64
@@ -76,7 +76,7 @@ services:
     networks:
       - laundry-network
 
-  # Store Service (GraphQL API with MongoDB)
+  # Store Service (GraphQL API with PostgreSQL)
   store-service:
     build: ./services/store-service
     container_name: store-service
@@ -85,7 +85,23 @@ services:
     environment:
       - PORT=4001
       - NODE_ENV=development
-      - MONGODB_URI=mongodb://laundry_admin:laundry_secret@mongodb:27017/laundry_stores?authSource=admin
+      - DATABASE_URL=postgresql://laundry_user:laundry_pass@postgres:5432/laundry_stores
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - laundry-network
+
+  # Booking Service (GraphQL API with MongoDB) - NEW
+  booking-service:
+    build: ./services/booking-service
+    container_name: booking-service
+    ports:
+      - "4002:4002"
+    environment:
+      - PORT=4002
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://laundry_admin:laundry_secret@mongodb:27017/laundry_bookings?authSource=admin
     depends_on:
       mongodb:
         condition: service_healthy
@@ -102,10 +118,14 @@ services:
       - PORT=3000
       - REST_API_URL=http://user-service:3001
       - GRAPHQL_API_URL=http://laundry-service:4000
+      - STORE_API_URL=http://store-service:4001
+      - BOOKING_API_URL=http://booking-service:4002
       - NODE_ENV=development
     depends_on:
       - user-service
       - laundry-service
+      - store-service
+      - booking-service
     networks:
       - laundry-network
 
@@ -119,6 +139,7 @@ services:
       - "3002:3000"
     environment:
       - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:3000/graphql
+      - NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3000
     depends_on:
       - api-gateway
     networks:

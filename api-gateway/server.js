@@ -135,7 +135,9 @@ app.get('/health', (req, res) => {
     publicKeyLoaded: !!publicKey,
     services: {
       'user-service': process.env.REST_API_URL || 'http://user-service:3001',
-      'laundry-service': process.env.GRAPHQL_API_URL || 'http://laundry-service:4000'
+      'laundry-service': process.env.GRAPHQL_API_URL || 'http://laundry-service:4000',
+      'store-service': process.env.STORE_API_URL || 'http://store-service:4001',
+      'booking-service': process.env.BOOKING_API_URL || 'http://booking-service:4002'
     }
   });
 });
@@ -205,6 +207,28 @@ const storeServiceProxy = createProxyMiddleware({
   }
 });
 
+// Proxy configuration for Booking Service (NEW)
+const bookingServiceProxy = createProxyMiddleware({
+  target: process.env.BOOKING_API_URL || 'http://booking-service:4002',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/graphql-booking': '/graphql',
+  },
+  onError: (err, req, res) => {
+    console.error('Booking Service Proxy Error:', err.message);
+    res.status(500).json({
+      error: 'Booking Service unavailable',
+      message: err.message
+    });
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    if (req.headers['user']) {
+      proxyReq.setHeader('user', req.headers['user']);
+    }
+    console.log(`[Booking Service] ${req.method} ${req.url}`);
+  }
+});
+
 // Public routes (no authentication required)
 app.use('/api/auth', restApiProxy);
 app.use('/api/public-key', restApiProxy);
@@ -213,6 +237,7 @@ app.use('/api/public-key', restApiProxy);
 app.use('/api', verifyToken, restApiProxy);
 app.use('/graphql', verifyToken, graphqlApiProxy);
 app.use('/graphql-store', optionalVerifyToken, storeServiceProxy);
+app.use('/graphql-booking', verifyToken, bookingServiceProxy);
 
 // Catch-all route
 app.get('*', (req, res) => {
@@ -244,6 +269,8 @@ async function startServer() {
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔄 Proxying /api/* to: ${process.env.REST_API_URL || 'http://user-service:3001'}`);
     console.log(`🔄 Proxying /graphql to: ${process.env.GRAPHQL_API_URL || 'http://laundry-service:4000'}`);
+    console.log(`🔄 Proxying /graphql-store to: ${process.env.STORE_API_URL || 'http://store-service:4001'}`);
+    console.log(`🔄 Proxying /graphql-booking to: ${process.env.BOOKING_API_URL || 'http://booking-service:4002'}`);
     console.log(`🔐 JWT verification: ${publicKey ? 'ENABLED' : 'DISABLED'}`);
   });
 
