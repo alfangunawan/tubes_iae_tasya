@@ -141,8 +141,9 @@ export default function StoreDetailPage({ params }: { params: { id: string } }) 
                 throw new Error(errors[0].message);
             }
 
-            toast.success(`Booking successful! Total: Rp ${data.createBooking.totalPrice.toLocaleString()}`);
-            router.push('/track');
+            toast.success('Booking created! Redirecting to payment...');
+            // Redirect to payment page with booking ID
+            router.push(`/payment/${data.createBooking.id}`);
 
         } catch (err: any) {
             toast.error('Booking failed: ' + err.message);

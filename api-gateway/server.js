@@ -135,7 +135,7 @@ app.get('/health', (req, res) => {
     publicKeyLoaded: !!publicKey,
     services: {
       'user-service': process.env.REST_API_URL || 'http://user-service:3001',
-      'laundry-service': process.env.GRAPHQL_API_URL || 'http://laundry-service:4000',
+      'payment-service': process.env.PAYMENT_API_URL || 'http://payment-service:4000',
       'store-service': process.env.STORE_API_URL || 'http://store-service:4001',
       'booking-service': process.env.BOOKING_API_URL || 'http://booking-service:4002'
     }
@@ -165,15 +165,18 @@ const restApiProxy = createProxyMiddleware({
   }
 });
 
-// Proxy configuration for GraphQL API (Laundry)
-const graphqlApiProxy = createProxyMiddleware({
-  target: process.env.GRAPHQL_API_URL || 'http://laundry-service:4000',
+// Proxy configuration for Payment Service
+const paymentServiceProxy = createProxyMiddleware({
+  target: process.env.PAYMENT_API_URL || 'http://payment-service:4000',
   changeOrigin: true,
+  pathRewrite: {
+    '^/graphql-payment': '/graphql',
+  },
   ws: true,
   onError: (err, req, res) => {
-    console.error('Laundry Service Proxy Error:', err.message);
+    console.error('Payment Service Proxy Error:', err.message);
     res.status(500).json({
-      error: 'Laundry Service unavailable',
+      error: 'Payment Service unavailable',
       message: err.message
     });
   },
@@ -181,7 +184,7 @@ const graphqlApiProxy = createProxyMiddleware({
     if (req.headers['user']) {
       proxyReq.setHeader('user', req.headers['user']);
     }
-    console.log(`[Laundry Service] ${req.method} ${req.url}`);
+    console.log(`[Payment Service] ${req.method} ${req.url}`);
   }
 });
 
@@ -235,7 +238,7 @@ app.use('/api/public-key', restApiProxy);
 
 // Protected routes (authentication required)
 app.use('/api', verifyToken, restApiProxy);
-app.use('/graphql', verifyToken, graphqlApiProxy);
+app.use('/graphql-payment', verifyToken, paymentServiceProxy);
 app.use('/graphql-store', optionalVerifyToken, storeServiceProxy);
 app.use('/graphql-booking', verifyToken, bookingServiceProxy);
 
