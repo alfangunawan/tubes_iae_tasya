@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu, User, Globe, LogOut } from 'lucide-react';
+import { Menu, User, Globe, LogOut, LayoutDashboard } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -51,6 +51,8 @@ export default function Navbar() {
         router.refresh();
     };
 
+    const isAdmin = currentUser?.role === 'admin';
+
     return (
         <nav className="fixed top-0 w-full z-50 bg-white border-b border-gray-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -86,7 +88,7 @@ export default function Navbar() {
 
                         <div className="flex items-center gap-2 border border-gray-300 rounded-full p-1 pl-3 hover:shadow-md transition cursor-pointer relative group">
                             <Menu size={18} />
-                            <div className="bg-gray-500 rounded-full p-1 text-white">
+                            <div className={`rounded-full p-1 text-white ${isAdmin ? 'bg-[#FF385C]' : 'bg-gray-500'}`}>
                                 <User size={18} fill="white" />
                             </div>
 
@@ -98,14 +100,33 @@ export default function Navbar() {
                                     <>
                                         {/* Authenticated Menu */}
                                         <div className="px-4 py-3 hover:bg-gray-50 text-sm font-semibold text-gray-900 border-b border-gray-100">
-                                            <div>Hello, {currentUser.name}</div>
+                                            <div className="flex items-center gap-2">
+                                                Hello, {currentUser.name}
+                                                {isAdmin && (
+                                                    <span className="text-xs bg-[#FF385C] text-white px-2 py-0.5 rounded-full">
+                                                        Admin
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-xs text-gray-400 font-normal">{currentUser.email}</div>
                                         </div>
+
+                                        {/* Admin Dashboard Link - Only for admins */}
+                                        {isAdmin && (
+                                            <Link
+                                                href="/dashboard"
+                                                className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-sm text-[#FF385C] font-medium"
+                                            >
+                                                <LayoutDashboard size={14} />
+                                                Admin Dashboard
+                                            </Link>
+                                        )}
+
                                         <Link href="/profile" className="block px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
                                             My Profile
                                         </Link>
-                                        <Link href="/history" className="block px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
-                                            Order History
+                                        <Link href="/track" className="block px-4 py-2 hover:bg-gray-50 text-sm text-gray-700">
+                                            Track Orders
                                         </Link>
                                         <div className="border-t border-gray-200 my-2"></div>
                                         <div
