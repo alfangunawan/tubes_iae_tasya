@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -10,7 +12,22 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table"
-import { RefreshCw, Shield, User } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { RefreshCw, Shield, User, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -26,6 +43,14 @@ interface UserData {
 export default function UsersPage() {
     const [users, setUsers] = useState<UserData[]>([])
     const [loading, setLoading] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: 'CUSTOMER',
+        phone: ''
+    })
 
     useEffect(() => {
         fetchUsers()
@@ -33,15 +58,14 @@ export default function UsersPage() {
 
     const fetchUsers = async () => {
         const token = localStorage.getItem('token')
-        if (!token) return
+        if (!token) {
+            setLoading(false)
+            return
+        }
 
         try {
-            // Note: In a real app, you'd have a proper users list endpoint
-            // For demo, we'll show the current logged-in user + hardcoded users
             const res = await fetch('http://localhost:3000/api/users/profile', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             })
 
             const currentUser = await res.json()
@@ -66,7 +90,6 @@ export default function UsersPage() {
                 }
             ]
 
-            // Add current user if not already in the list
             if (currentUser && !demoUsers.find(u => u.email === currentUser.email)) {
                 demoUsers.push({
                     id: currentUser.id,
@@ -81,7 +104,6 @@ export default function UsersPage() {
             setUsers(demoUsers)
         } catch (err: any) {
             toast.error('Failed to fetch users')
-            // Fallback to demo users
             setUsers([
                 {
                     id: '1',
@@ -102,6 +124,48 @@ export default function UsersPage() {
             ])
         } finally {
             setLoading(false)
+        }
+    }
+
+    const createUser = async () => {
+        if (!formData.name || !formData.email || !formData.password) {
+            toast.warning('Please fill all required fields')
+            return
+        }
+
+        try {
+            const res = await fetch('http://localhost:3000/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password,
+                    phone: formData.phone
+                })
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) {
+                throw new Error(data.message || 'Failed to create user')
+            }
+
+            toast.success('User created successfully')
+            setDialogOpen(false)
+            setFormData({ name: '', email: '', password: '', role: 'CUSTOMER', phone: '' })
+
+            // Add to local state
+            setUsers([...users, {
+                id: data.user?.id || String(Date.now()),
+                name: formData.name,
+                email: formData.email,
+                role: formData.role,
+                phone: formData.phone,
+                createdAt: new Date().toISOString()
+            }])
+        } catch (err: any) {
+            toast.error('Failed to create user: ' + err.message)
         }
     }
 
@@ -132,10 +196,78 @@ export default function UsersPage() {
                     <h1 className="text-2xl font-bold">Users</h1>
                     <p className="text-gray-500">Manage system users</p>
                 </div>
-                <Button onClick={fetchUsers} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={fetchUsers} variant="outline" size="sm">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                    </Button>
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="bg-[#FF385C] hover:bg-[#E31C5F]">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create User
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New User</DialogTitle>
+                                <DialogDescription>Register a new user account</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Full Name *</Label>
+                                    <Input
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        placeholder="John Doe"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Email *</Label>
+                                    <Input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="john@example.com"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Password *</Label>
+                                    <Input
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Role</Label>
+                                    <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="CUSTOMER">Customer</SelectItem>
+                                            <SelectItem value="staff">Staff</SelectItem>
+                                            <SelectItem value="admin">Admin</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Phone</Label>
+                                    <Input
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="081234567890"
+                                    />
+                                </div>
+                                <Button onClick={createUser} className="w-full bg-[#FF385C] hover:bg-[#E31C5F]">
+                                    Create User
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             {/* Stats */}

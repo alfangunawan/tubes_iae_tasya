@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -10,7 +12,22 @@ import {
     TableHeader,
     TableRow
 } from "@/components/ui/table"
-import { RefreshCw, RotateCcw } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { RefreshCw, RotateCcw, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -28,9 +45,20 @@ interface Payment {
     createdAt: string
 }
 
+const PAYMENT_METHODS = ['BANK_TRANSFER', 'E_WALLET', 'CREDIT_CARD', 'CASH']
+
 export default function PaymentsPage() {
     const [payments, setPayments] = useState<Payment[]>([])
     const [loading, setLoading] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [formData, setFormData] = useState({
+        bookingId: '',
+        userName: '',
+        userEmail: '',
+        storeName: '',
+        amount: 0,
+        paymentMethod: 'BANK_TRANSFER'
+    })
 
     useEffect(() => {
         fetchPayments()
@@ -49,22 +77,13 @@ export default function PaymentsPage() {
                 },
                 body: JSON.stringify({
                     query: `
-            query {
-              payments {
-                id
-                bookingId
-                userName
-                userEmail
-                storeName
-                amount
-                paymentMethod
-                status
-                invoiceNumber
-                paidAt
-                createdAt
-              }
-            }
-          `
+                        query {
+                            payments {
+                                id bookingId userName userEmail storeName
+                                amount paymentMethod status invoiceNumber paidAt createdAt
+                            }
+                        }
+                    `
                 })
             })
 
@@ -75,6 +94,58 @@ export default function PaymentsPage() {
             toast.error('Failed to fetch payments: ' + err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const createPayment = async () => {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        if (!formData.userName || !formData.amount) {
+            toast.warning('Please fill all required fields')
+            return
+        }
+
+        try {
+            const userInfo = JSON.parse(atob(token.split('.')[1]))
+
+            const res = await fetch('http://localhost:3000/graphql-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation CreatePayment($input: CreatePaymentInput!) {
+                            createPayment(input: $input) { id invoiceNumber }
+                        }
+                    `,
+                    variables: {
+                        input: {
+                            bookingId: formData.bookingId || `manual-${Date.now()}`,
+                            userId: userInfo.id,
+                            userName: formData.userName,
+                            userEmail: formData.userEmail,
+                            storeName: formData.storeName,
+                            serviceLabel: 'Manual Payment',
+                            weight: 1,
+                            amount: formData.amount,
+                            paymentMethod: formData.paymentMethod
+                        }
+                    }
+                })
+            })
+
+            const { data, errors } = await res.json()
+            if (errors) throw new Error(errors[0].message)
+
+            toast.success(`Payment created: ${data.createPayment.invoiceNumber}`)
+            setDialogOpen(false)
+            setFormData({ bookingId: '', userName: '', userEmail: '', storeName: '', amount: 0, paymentMethod: 'BANK_TRANSFER' })
+            fetchPayments()
+        } catch (err: any) {
+            toast.error('Failed to create payment: ' + err.message)
         }
     }
 
@@ -94,20 +165,15 @@ export default function PaymentsPage() {
                 },
                 body: JSON.stringify({
                     query: `
-            mutation RefundPayment($input: RefundPaymentInput!) {
-              refundPayment(input: $input) {
-                id
-                status
-              }
-            }
-          `,
-                    variables: {
-                        input: { paymentId, reason }
-                    }
+                        mutation RefundPayment($input: RefundPaymentInput!) {
+                            refundPayment(input: $input) { id status }
+                        }
+                    `,
+                    variables: { input: { paymentId, reason } }
                 })
             })
 
-            const { data, errors } = await res.json()
+            const { errors } = await res.json()
             if (errors) throw new Error(errors[0].message)
 
             toast.success('Payment refunded successfully')
@@ -138,14 +204,9 @@ export default function PaymentsPage() {
         return labels[method] || method
     }
 
-    // Calculate stats
-    const totalRevenue = payments
-        .filter(p => p.status === 'PAID')
-        .reduce((sum, p) => sum + p.amount, 0)
+    const totalRevenue = payments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0)
     const pendingPayments = payments.filter(p => p.status === 'PENDING').length
-    const refundedAmount = payments
-        .filter(p => p.status === 'REFUNDED')
-        .reduce((sum, p) => sum + p.amount, 0)
+    const refundedAmount = payments.filter(p => p.status === 'REFUNDED').reduce((sum, p) => sum + p.amount, 0)
 
     if (loading) {
         return (
@@ -162,10 +223,78 @@ export default function PaymentsPage() {
                     <h1 className="text-2xl font-bold">Payments</h1>
                     <p className="text-gray-500">Manage all payment transactions</p>
                 </div>
-                <Button onClick={fetchPayments} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={fetchPayments} variant="outline" size="sm">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                    </Button>
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="bg-[#FF385C] hover:bg-[#E31C5F]">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create Payment
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create Manual Payment</DialogTitle>
+                                <DialogDescription>Record a manual payment transaction</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Customer Name *</Label>
+                                    <Input
+                                        value={formData.userName}
+                                        onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
+                                        placeholder="Customer name"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Customer Email</Label>
+                                    <Input
+                                        type="email"
+                                        value={formData.userEmail}
+                                        onChange={(e) => setFormData({ ...formData, userEmail: e.target.value })}
+                                        placeholder="customer@email.com"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Store Name</Label>
+                                    <Input
+                                        value={formData.storeName}
+                                        onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                                        placeholder="Store name"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Amount (Rp) *</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        value={formData.amount}
+                                        onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Payment Method</Label>
+                                    <Select value={formData.paymentMethod} onValueChange={(v) => setFormData({ ...formData, paymentMethod: v })}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {PAYMENT_METHODS.map((method) => (
+                                                <SelectItem key={method} value={method}>{getMethodLabel(method)}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button onClick={createPayment} className="w-full bg-[#FF385C] hover:bg-[#E31C5F]">
+                                    Create Payment
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             {/* Stats */}

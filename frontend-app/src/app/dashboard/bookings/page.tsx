@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -18,7 +19,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { RefreshCw, Trash2 } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import { RefreshCw, Trash2, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -35,15 +44,46 @@ interface Booking {
     createdAt: string
 }
 
+interface Store {
+    id: string
+    name: string
+    services: { type: string; label: string; price: number }[]
+}
+
 const STATUSES = ['PENDING', 'CONFIRMED', 'PROCESSING', 'READY', 'COMPLETED', 'CANCELLED']
 
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([])
+    const [stores, setStores] = useState<Store[]>([])
     const [loading, setLoading] = useState(true)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [formData, setFormData] = useState({
+        storeId: '',
+        serviceType: '',
+        weight: 1,
+        checkInDate: new Date().toISOString().split('T')[0]
+    })
 
     useEffect(() => {
         fetchBookings()
+        fetchStores()
     }, [])
+
+    const fetchStores = async () => {
+        try {
+            const res = await fetch('http://localhost:3000/graphql-store', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: `query { stores { id name services { type label price } } }`
+                })
+            })
+            const { data } = await res.json()
+            setStores(data?.stores || [])
+        } catch (err) {
+            console.error('Failed to fetch stores')
+        }
+    }
 
     const fetchBookings = async () => {
         const token = localStorage.getItem('token')
@@ -58,21 +98,13 @@ export default function BookingsPage() {
                 },
                 body: JSON.stringify({
                     query: `
-            query {
-              bookings {
-                id
-                userName
-                userEmail
-                storeName
-                serviceLabel
-                weight
-                totalPrice
-                status
-                checkInDate
-                createdAt
-              }
-            }
-          `
+                        query {
+                            bookings {
+                                id userName userEmail storeName serviceLabel
+                                weight totalPrice status checkInDate createdAt
+                            }
+                        }
+                    `
                 })
             })
 
@@ -83,6 +115,66 @@ export default function BookingsPage() {
             toast.error('Failed to fetch bookings: ' + err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const createBooking = async () => {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        if (!formData.storeId || !formData.serviceType) {
+            toast.warning('Please fill all required fields')
+            return
+        }
+
+        try {
+            const userInfo = JSON.parse(atob(token.split('.')[1]))
+            const selectedStore = stores.find(s => s.id === formData.storeId)
+            const selectedService = selectedStore?.services.find(s => s.type === formData.serviceType)
+
+            if (!selectedStore || !selectedService) {
+                toast.error('Invalid store or service')
+                return
+            }
+
+            const res = await fetch('http://localhost:3000/graphql-booking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation CreateBooking($input: CreateBookingInput!) {
+                            createBooking(input: $input) { id }
+                        }
+                    `,
+                    variables: {
+                        input: {
+                            userId: userInfo.id,
+                            userName: userInfo.name,
+                            userEmail: userInfo.email,
+                            storeId: formData.storeId,
+                            storeName: selectedStore.name,
+                            serviceType: formData.serviceType,
+                            serviceLabel: selectedService.label,
+                            weight: formData.weight,
+                            pricePerKg: selectedService.price,
+                            checkInDate: formData.checkInDate
+                        }
+                    }
+                })
+            })
+
+            const { errors } = await res.json()
+            if (errors) throw new Error(errors[0].message)
+
+            toast.success('Booking created successfully')
+            setDialogOpen(false)
+            setFormData({ storeId: '', serviceType: '', weight: 1, checkInDate: new Date().toISOString().split('T')[0] })
+            fetchBookings()
+        } catch (err: any) {
+            toast.error('Failed to create booking: ' + err.message)
         }
     }
 
@@ -99,20 +191,15 @@ export default function BookingsPage() {
                 },
                 body: JSON.stringify({
                     query: `
-            mutation UpdateBookingStatus($input: UpdateBookingStatusInput!) {
-              updateBookingStatus(input: $input) {
-                id
-                status
-              }
-            }
-          `,
-                    variables: {
-                        input: { id: bookingId, status: newStatus }
-                    }
+                        mutation UpdateBookingStatus($input: UpdateBookingStatusInput!) {
+                            updateBookingStatus(input: $input) { id status }
+                        }
+                    `,
+                    variables: { input: { id: bookingId, status: newStatus } }
                 })
             })
 
-            const { data, errors } = await res.json()
+            const { errors } = await res.json()
             if (errors) throw new Error(errors[0].message)
 
             toast.success(`Status updated to ${newStatus}`)
@@ -136,19 +223,12 @@ export default function BookingsPage() {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    query: `
-            mutation CancelBooking($id: ID!) {
-              cancelBooking(id: $id) {
-                id
-                status
-              }
-            }
-          `,
+                    query: `mutation CancelBooking($id: ID!) { cancelBooking(id: $id) { id status } }`,
                     variables: { id: bookingId }
                 })
             })
 
-            const { data, errors } = await res.json()
+            const { errors } = await res.json()
             if (errors) throw new Error(errors[0].message)
 
             toast.success('Booking cancelled')
@@ -170,6 +250,8 @@ export default function BookingsPage() {
         return variants[status] || 'bg-gray-100 text-gray-700'
     }
 
+    const selectedStore = stores.find(s => s.id === formData.storeId)
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
@@ -185,10 +267,78 @@ export default function BookingsPage() {
                     <h1 className="text-2xl font-bold">Bookings</h1>
                     <p className="text-gray-500">Manage all laundry bookings</p>
                 </div>
-                <Button onClick={fetchBookings} variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={fetchBookings} variant="outline" size="sm">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                    </Button>
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="bg-[#FF385C] hover:bg-[#E31C5F]">
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create Booking
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Create New Booking</DialogTitle>
+                                <DialogDescription>Create a booking for a customer</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Label>Store *</Label>
+                                    <Select value={formData.storeId} onValueChange={(v) => setFormData({ ...formData, storeId: v, serviceType: '' })}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select store" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {stores.map((store) => (
+                                                <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {selectedStore && (
+                                    <div className="space-y-2">
+                                        <Label>Service *</Label>
+                                        <Select value={formData.serviceType} onValueChange={(v) => setFormData({ ...formData, serviceType: v })}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select service" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {selectedStore.services.map((service) => (
+                                                    <SelectItem key={service.type} value={service.type}>
+                                                        {service.label} - Rp {service.price.toLocaleString()}/kg
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                <div className="space-y-2">
+                                    <Label>Weight (kg) *</Label>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        value={formData.weight}
+                                        onChange={(e) => setFormData({ ...formData, weight: Number(e.target.value) })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Check-in Date *</Label>
+                                    <Input
+                                        type="date"
+                                        value={formData.checkInDate}
+                                        onChange={(e) => setFormData({ ...formData, checkInDate: e.target.value })}
+                                    />
+                                </div>
+                                <Button onClick={createBooking} className="w-full bg-[#FF385C] hover:bg-[#E31C5F]">
+                                    Create Booking
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             <Card>
