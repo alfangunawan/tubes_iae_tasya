@@ -84,7 +84,7 @@ export default function Navbar() {
                     {/* Right Menu */}
                     <div className="flex items-center gap-4">
                         <div className="hidden md:block text-sm font-medium text-gray-900 hover:bg-gray-100 px-4 py-2 rounded-full cursor-pointer transition">
-                            Join as Partner
+                            Join as Seller
                         </div>
                         <div className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
                             <Globe size={18} />

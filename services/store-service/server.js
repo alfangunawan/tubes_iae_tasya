@@ -7,6 +7,8 @@ const Store = require('./models/Store');
 const app = express();
 app.use(cors());
 
+const { Op } = require('sequelize');
+
 // --- GraphQL Schema ---
 const typeDefs = gql`
   type Service {
@@ -29,7 +31,7 @@ const typeDefs = gql`
   }
 
   type Query {
-    stores: [Store]
+    stores(search: String): [Store]
     store(id: ID!): Store
     myStores(ownerId: ID!): [Store]
   }
@@ -57,8 +59,20 @@ const typeDefs = gql`
 // --- Resolvers ---
 const resolvers = {
   Query: {
-    stores: async () => {
-      const stores = await Store.findAll({ order: [['created_at', 'DESC']] });
+    stores: async (_, { search }) => {
+      const where = {};
+      if (search) {
+        where[Op.or] = [
+          { name: { [Op.iLike]: `%${search}%` } },
+          { address: { [Op.iLike]: `%${search}%` } }
+        ];
+      }
+
+      const stores = await Store.findAll({
+        where,
+        order: [['created_at', 'DESC']]
+      });
+
       return stores.map(s => ({
         id: s.id,
         name: s.name,

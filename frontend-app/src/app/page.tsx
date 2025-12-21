@@ -5,10 +5,10 @@ import SearchBar from '../components/SearchBar';
 import StoreCard from '../components/StoreCard';
 import { useEffect, useState } from 'react';
 
-async function fetchStores() {
+async function fetchStores(search: string = '') {
   const query = `
-    query GetStores {
-      stores {
+    query GetStores($search: String) {
+      stores(search: $search) {
         id
         name
         address
@@ -27,7 +27,10 @@ async function fetchStores() {
   const res = await fetch('http://localhost:3000/graphql-store', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({
+      query,
+      variables: { search }
+    })
   });
 
   const { data, errors } = await res.json();
@@ -38,13 +41,15 @@ async function fetchStores() {
 export default function Home() {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchStores()
+    setLoading(true);
+    fetchStores(searchQuery)
       .then(data => setStores(data))
       .catch(err => console.error('Failed to fetch stores:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [searchQuery]);
 
   return (
     <main className="min-h-screen bg-white">
@@ -53,7 +58,7 @@ export default function Home() {
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto">
 
         <section className="mb-8 flex justify-center">
-          <SearchBar />
+          <SearchBar onSearch={setSearchQuery} />
         </section>
 
         <section className="mb-8 flex gap-8 overflow-x-auto pb-4 hide-scrollbar justify-center">
