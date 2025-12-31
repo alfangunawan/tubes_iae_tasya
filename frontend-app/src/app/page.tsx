@@ -3,12 +3,13 @@
 import Navbar from '../components/Navbar';
 import SearchBar from '../components/SearchBar';
 import StoreCard from '../components/StoreCard';
+import CategoryFilter from '../components/CategoryFilter';
 import { useEffect, useState } from 'react';
 
-async function fetchStores(search: string = '') {
+async function fetchStores(search: string = '', serviceType: string | null = null) {
   const query = `
-    query GetStores($search: String) {
-      stores(search: $search) {
+    query GetStores($search: String, $serviceType: String) {
+      stores(search: $search, serviceType: $serviceType) {
         id
         name
         address
@@ -29,7 +30,7 @@ async function fetchStores(search: string = '') {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query,
-      variables: { search }
+      variables: { search, serviceType }
     })
   });
 
@@ -42,14 +43,15 @@ export default function Home() {
   const [stores, setStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetchStores(searchQuery)
+    fetchStores(searchQuery, selectedCategory)
       .then(data => setStores(data))
       .catch(err => console.error('Failed to fetch stores:', err))
       .finally(() => setLoading(false));
-  }, [searchQuery]);
+  }, [searchQuery, selectedCategory]);
 
   return (
     <main className="min-h-screen bg-white">
@@ -61,13 +63,11 @@ export default function Home() {
           <SearchBar onSearch={setSearchQuery} />
         </section>
 
-        <section className="mb-8 flex gap-8 overflow-x-auto pb-4 hide-scrollbar justify-center">
-          {['Washing', 'Dry Clean', 'Ironing', 'Shoes', 'Carpets', 'Express'].map((cat, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 min-w-[64px] cursor-pointer opacity-60 hover:opacity-100 hover:border-b-2 hover:border-black pb-2 transition">
-              <div className="w-6 h-6 bg-gray-400 rounded-full"></div>
-              <span className="text-xs font-semibold">{cat}</span>
-            </div>
-          ))}
+        <section className="mb-8">
+          <CategoryFilter
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+          />
         </section>
 
         {loading ? (

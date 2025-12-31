@@ -31,7 +31,7 @@ const typeDefs = gql`
   }
 
   type Query {
-    stores(search: String): [Store]
+    stores(search: String, serviceType: String): [Store]
     store(id: ID!): Store
     myStores(ownerId: ID!): [Store]
   }
@@ -59,7 +59,7 @@ const typeDefs = gql`
 // --- Resolvers ---
 const resolvers = {
   Query: {
-    stores: async (_, { search }) => {
+    stores: async (_, { search, serviceType }) => {
       const where = {};
       if (search) {
         where[Op.or] = [
@@ -68,10 +68,19 @@ const resolvers = {
         ];
       }
 
-      const stores = await Store.findAll({
+      let stores = await Store.findAll({
         where,
         order: [['created_at', 'DESC']]
       });
+
+      // Filter by serviceType if provided
+      if (serviceType) {
+        stores = stores.filter(s =>
+          s.services && s.services.some(svc =>
+            svc.type && svc.type.toLowerCase() === serviceType.toLowerCase()
+          )
+        );
+      }
 
       return stores.map(s => ({
         id: s.id,
