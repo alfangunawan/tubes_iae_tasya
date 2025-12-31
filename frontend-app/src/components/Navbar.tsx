@@ -83,9 +83,18 @@ export default function Navbar() {
 
                     {/* Right Menu */}
                     <div className="flex items-center gap-4">
-                        <div className="hidden md:block text-sm font-medium text-gray-900 hover:bg-gray-100 px-4 py-2 rounded-full cursor-pointer transition">
-                            Join as Seller
-                        </div>
+                        <Link
+                            href={
+                                !currentUser ? '/login' :
+                                    currentUser.role === 'SELLER' ? '/seller/dashboard' :
+                                        '/become-seller'
+                            }
+                        >
+                            <div className="hidden md:block text-sm font-medium text-gray-900 hover:bg-gray-100 px-4 py-2 rounded-full cursor-pointer transition">
+                                {currentUser?.role === 'SELLER' ? 'Seller Dashboard' : 'Join as Seller'}
+                            </div>
+                        </Link>
+
                         <div className="p-2 hover:bg-gray-100 rounded-full cursor-pointer">
                             <Globe size={18} />
                         </div>

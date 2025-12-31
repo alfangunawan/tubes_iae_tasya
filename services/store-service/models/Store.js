@@ -65,8 +65,9 @@ Store.seedDefaultStores = async function () {
                     'https://images.unsplash.com/photo-1517677208171-0bc5e59b2604?q=80&w=2070&auto=format&fit=crop'
                 ],
                 services: [
-                    { type: 'WASH', price: 6000, label: 'Premium Wash' },
-                    { type: 'FULL_SERVICE', price: 12000, label: 'Wash, Dry & Fold' }
+                    { type: 'Washing', price: 6000, label: 'Premium Wash' },
+                    { type: 'Dry Clean', price: 15000, label: 'Dry Cleaning' },
+                    { type: 'Ironing', price: 5000, label: 'Steam Iron' }
                 ]
             },
             {
@@ -80,8 +81,9 @@ Store.seedDefaultStores = async function () {
                     'https://images.unsplash.com/photo-1521656693074-0ef32e80a5d5?q=80&w=2070&auto=format&fit=crop'
                 ],
                 services: [
-                    { type: 'WASH_IRON', price: 8000, label: 'Wash & Iron' },
-                    { type: 'IRON', price: 4000, label: 'Iron Only' }
+                    { type: 'Washing', price: 5000, label: 'Regular Wash' },
+                    { type: 'Ironing', price: 4000, label: 'Iron Only' },
+                    { type: 'Express', price: 10000, label: 'Express Service (Same Day)' }
                 ]
             },
             {
@@ -95,8 +97,8 @@ Store.seedDefaultStores = async function () {
                     'https://images.unsplash.com/photo-1604369847290-7d94944d1891?q=80&w=2069&auto=format&fit=crop'
                 ],
                 services: [
-                    { type: 'FULL_SERVICE', price: 35000, label: 'Deep Clean (Shoes)' },
-                    { type: 'DRY', price: 25000, label: 'Fast Clean' }
+                    { type: 'Shoes', price: 35000, label: 'Deep Clean Shoes' },
+                    { type: 'Shoes', price: 25000, label: 'Fast Clean Shoes' }
                 ]
             },
             {
@@ -110,8 +112,9 @@ Store.seedDefaultStores = async function () {
                     'https://images.unsplash.com/photo-1563456019-943e884b2383?q=80&w=2070&auto=format&fit=crop'
                 ],
                 services: [
-                    { type: 'WASH_DRY', price: 5000, label: 'Cuci Kering' },
-                    { type: 'WASH_IRON', price: 6500, label: 'Cuci Setrika' }
+                    { type: 'Washing', price: 5000, label: 'Cuci Kering' },
+                    { type: 'Ironing', price: 6500, label: 'Cuci Setrika' },
+                    { type: 'Carpets', price: 20000, label: 'Cuci Karpet' }
                 ]
             },
             {
@@ -125,8 +128,24 @@ Store.seedDefaultStores = async function () {
                     'https://images.unsplash.com/photo-1567113463300-102a7eb3cb26?q=80&w=2070&auto=format&fit=crop'
                 ],
                 services: [
-                    { type: 'FULL_SERVICE', price: 25000, label: 'Suit Dry Clean' },
-                    { type: 'IRON', price: 10000, label: 'Steam Press' }
+                    { type: 'Dry Clean', price: 25000, label: 'Suit Dry Clean' },
+                    { type: 'Ironing', price: 10000, label: 'Steam Press' },
+                    { type: 'Express', price: 35000, label: 'Express Dry Clean' }
+                ]
+            },
+            {
+                name: 'Carpet Master Bandung',
+                description: 'Spesialis cuci karpet dan sofa.',
+                address: 'Jl. Buah Batu No. 88',
+                ownerId: 'owner_303',
+                rating: 4.6,
+                reviewCount: 78,
+                images: [
+                    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=2032&auto=format&fit=crop'
+                ],
+                services: [
+                    { type: 'Carpets', price: 50000, label: 'Deep Clean Carpet' },
+                    { type: 'Carpets', price: 30000, label: 'Regular Clean Carpet' }
                 ]
             }
         ];

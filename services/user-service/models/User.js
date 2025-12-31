@@ -25,7 +25,7 @@ const User = sequelize.define('User', {
         allowNull: false
     },
     role: {
-        type: DataTypes.ENUM('admin', 'CUSTOMER', 'staff'),
+        type: DataTypes.ENUM('admin', 'CUSTOMER', 'staff', 'SELLER'),
         defaultValue: 'CUSTOMER'
     },
     phone: {
@@ -89,6 +89,18 @@ User.seedDefaultUsers = async function () {
             phone: '089876543210'
         });
         console.log('✅ Default customer user created');
+    }
+
+    const sellerExists = await this.findByEmail('seller@smartlaundry.com');
+    if (!sellerExists) {
+        await this.create({
+            email: 'seller@smartlaundry.com',
+            password: 'seller123',
+            name: 'Seller Demo',
+            role: 'SELLER',
+            phone: '081234567891'
+        });
+        console.log('✅ Default seller user created');
     }
 };
 
