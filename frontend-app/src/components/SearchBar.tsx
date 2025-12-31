@@ -23,7 +23,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
 
     return (
         <div className="flex justify-center w-full max-w-4xl mx-auto my-6">
-            <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-md hover:shadow-lg transition cursor-pointer divide-x divide-gray-200 w-full">
+            <div className="flex items-center bg-white rounded-full border border-gray-200 shadow-md hover:shadow-lg transition cursor-pointer w-full">
 
                 {/* Pickup Location */}
                 <div className="flex-1 px-8 py-3 hover:bg-gray-100 rounded-l-full transition">
@@ -35,26 +35,6 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
-                    />
-                </div>
-
-                {/* Pickup Date */}
-                <div className="flex-1 px-8 py-3 hover:bg-gray-100 transition">
-                    <label className="block text-xs font-bold text-gray-800">Kapan</label>
-                    <input
-                        type="text"
-                        placeholder="Tambahkan tanggal"
-                        className="w-full bg-transparent text-sm text-gray-600 focus:outline-none placeholder-gray-400 truncate"
-                    />
-                </div>
-
-                {/* Weight */}
-                <div className="flex-1 px-8 py-3 hover:bg-gray-100 transition relative">
-                    <label className="block text-xs font-bold text-gray-800">Berat</label>
-                    <input
-                        type="number"
-                        placeholder="Estimasi berat (kg)"
-                        className="w-full bg-transparent text-sm text-gray-600 focus:outline-none placeholder-gray-400 truncate"
                     />
                 </div>
 

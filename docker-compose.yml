@@ -135,12 +135,17 @@ services:
     build:
       context: ./frontend-app
       dockerfile: Dockerfile
+      target: deps
     container_name: frontend-app
     ports:
       - "3002:3000"
+    volumes:
+      - ./frontend-app:/app
+      - /app/node_modules
     environment:
       - NEXT_PUBLIC_GRAPHQL_URL=http://localhost:3000/graphql
       - NEXT_PUBLIC_API_GATEWAY_URL=http://localhost:3000
+    command: npm run dev
     depends_on:
       - api-gateway
     networks:
