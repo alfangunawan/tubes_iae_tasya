@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 interface BookingData {
     id: string;
+    storeId: string;
     storeName: string;
     serviceType: string;
     serviceLabel: string;
@@ -63,6 +64,7 @@ export default function PaymentPage() {
                 query GetBooking($id: ID!) {
                     booking(id: $id) {
                         id
+                        storeId
                         storeName
                         serviceType
                         serviceLabel
@@ -173,6 +175,7 @@ export default function PaymentPage() {
                                 userId: userInfo.id,
                                 userName: userInfo.name,
                                 userEmail: userInfo.email,
+                                storeId: booking.storeId,
                                 storeName: booking.storeName,
                                 serviceLabel: booking.serviceLabel,
                                 weight: booking.weight,
@@ -357,8 +360,8 @@ export default function PaymentPage() {
                                         key={method.id}
                                         onClick={() => setSelectedMethod(method.id)}
                                         className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition ${selectedMethod === method.id
-                                                ? 'border-[#FF385C] bg-red-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-[#FF385C] bg-red-50'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <div className={`p-2 rounded-lg ${selectedMethod === method.id ? 'bg-[#FF385C] text-white' : 'bg-gray-100'

@@ -22,6 +22,10 @@ const paymentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    storeId: {
+        type: String,
+        required: true
+    },
     serviceLabel: {
         type: String
     },

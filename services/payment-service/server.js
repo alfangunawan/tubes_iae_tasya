@@ -38,6 +38,7 @@ const typeDefs = gql`
     userId: String!
     userName: String!
     userEmail: String!
+    storeId: String!
     storeName: String!
     serviceLabel: String
     weight: Float!
@@ -58,6 +59,7 @@ const typeDefs = gql`
     paymentByBooking(bookingId: String!): Payment
     myPayments(userId: String!): [Payment]
     paymentHistory(userId: String!): [Payment]
+    paymentsByStores(storeIds: [String!]!): [Payment]
   }
 
   input CreatePaymentInput {
@@ -65,6 +67,7 @@ const typeDefs = gql`
     userId: String!
     userName: String!
     userEmail: String!
+    storeId: String!
     storeName: String!
     serviceLabel: String
     weight: Float!
@@ -108,6 +111,12 @@ const resolvers = {
             return await Payment.find({
                 userId,
                 status: { $in: ['PAID', 'REFUNDED'] }
+            }).sort({ createdAt: -1 });
+        },
+        paymentsByStores: async (_, { storeIds }) => {
+            return await Payment.find({
+                storeId: { $in: storeIds },
+                status: 'PAID'
             }).sort({ createdAt: -1 });
         }
     },

@@ -119,6 +119,9 @@ app.use(cors({
   credentials: true
 }));
 
+// JSON body parser
+app.use(express.json());
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -235,6 +238,118 @@ const bookingServiceProxy = createProxyMiddleware({
 // Public routes (no authentication required)
 app.use('/api/auth', restApiProxy);
 app.use('/api/public-key', restApiProxy);
+
+// === Seller Dashboard Aggregation Endpoint ===
+app.get('/api/seller/dashboard', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const token = req.headers.authorization;
+
+    const storeServiceUrl = process.env.STORE_API_URL || 'http://store-service:4001';
+    const bookingServiceUrl = process.env.BOOKING_API_URL || 'http://booking-service:4002';
+    const paymentServiceUrl = process.env.PAYMENT_API_URL || 'http://payment-service:4000';
+
+    // 1. Fetch stores owned by this user
+    const storesQuery = `
+      query MyStores($ownerId: ID!) {
+        myStores(ownerId: $ownerId) {
+          id
+          name
+          address
+          rating
+          reviewCount
+        }
+      }
+    `;
+
+    const storesResponse = await axios.post(`${storeServiceUrl}/graphql`, {
+      query: storesQuery,
+      variables: { ownerId: userId }
+    }, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': token }
+    });
+
+    const stores = storesResponse.data?.data?.myStores || [];
+    const storeIds = stores.map(s => s.id);
+
+    if (storeIds.length === 0) {
+      return res.json({
+        stores: [],
+        activeOrders: 0,
+        totalRevenue: 0,
+        recentBookings: []
+      });
+    }
+
+    // 2. Fetch bookings for all stores (active orders = not COMPLETED/CANCELLED)
+    const bookingsPromises = storeIds.map(storeId => {
+      const bookingsQuery = `
+        query StoreBookings($storeId: String!) {
+          storeBookings(storeId: $storeId) {
+            id
+            userName
+            serviceName: serviceLabel
+            weight
+            totalPrice
+            status
+            checkInDate
+            createdAt
+          }
+        }
+      `;
+      return axios.post(`${bookingServiceUrl}/graphql`, {
+        query: bookingsQuery,
+        variables: { storeId }
+      }, {
+        headers: { 'Content-Type': 'application/json', 'Authorization': token }
+      });
+    });
+
+    const bookingsResponses = await Promise.all(bookingsPromises);
+    const allBookings = bookingsResponses.flatMap(r => r.data?.data?.storeBookings || []);
+
+    // Active orders = status NOT in [COMPLETED, CANCELLED]
+    const activeStatuses = ['PENDING', 'CONFIRMED', 'PROCESSING', 'READY'];
+    const activeOrders = allBookings.filter(b => activeStatuses.includes(b.status)).length;
+    const recentBookings = allBookings.slice(0, 5); // Last 5 bookings
+
+    // 3. Fetch payments for revenue calculation
+    const paymentsQuery = `
+      query PaymentsByStores($storeIds: [String!]!) {
+        paymentsByStores(storeIds: $storeIds) {
+          id
+          amount
+          status
+        }
+      }
+    `;
+
+    const paymentsResponse = await axios.post(`${paymentServiceUrl}/graphql`, {
+      query: paymentsQuery,
+      variables: { storeIds }
+    }, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': token }
+    });
+
+    const payments = paymentsResponse.data?.data?.paymentsByStores || [];
+    const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Return aggregated data
+    res.json({
+      stores,
+      activeOrders,
+      totalRevenue,
+      recentBookings
+    });
+
+  } catch (error) {
+    console.error('Seller Dashboard Error:', error.message);
+    res.status(500).json({
+      error: 'Failed to fetch dashboard data',
+      message: error.message
+    });
+  }
+});
 
 // Protected routes (authentication required)
 app.use('/api', verifyToken, restApiProxy);
