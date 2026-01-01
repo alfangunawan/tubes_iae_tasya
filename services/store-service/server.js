@@ -51,8 +51,18 @@ const typeDefs = gql`
     images: [String]
   }
 
+  input UpdateStoreInput {
+    name: String
+    description: String
+    address: String
+    services: [ServiceInput]
+    images: [String]
+  }
+
   type Mutation {
     createStore(input: CreateStoreInput!): Store
+    updateStore(id: ID!, input: UpdateStoreInput!): Store
+    deleteStore(id: ID!): Boolean
   }
 `;
 
@@ -145,6 +155,34 @@ const resolvers = {
         services: newStore.services,
         createdAt: newStore.created_at
       };
+    },
+    updateStore: async (_, { id, input }) => {
+      const store = await Store.findByPk(id);
+      if (!store) {
+        throw new Error('Store not found');
+      }
+      await store.update(input);
+      return {
+        id: store.id,
+        name: store.name,
+        description: store.description,
+        address: store.address,
+        ownerId: store.ownerId,
+        images: store.images,
+        rating: parseFloat(store.rating),
+        reviewCount: store.reviewCount,
+        services: store.services,
+        createdAt: store.created_at
+      };
+    },
+    deleteStore: async (_, { id }) => {
+      const store = await Store.findByPk(id);
+      if (!store) {
+        throw new Error('Store not found');
+      }
+      await store.destroy();
+      console.log(`🗑️ Store ${id} deleted`);
+      return true;
     }
   }
 };
