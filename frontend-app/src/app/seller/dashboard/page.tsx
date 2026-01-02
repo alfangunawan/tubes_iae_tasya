@@ -5,9 +5,11 @@ import Navbar from '../../../components/Navbar';
 import { useRouter } from 'next/navigation';
 import {
     Store as StoreIcon, Package, TrendingUp, Plus, RefreshCw,
-    Edit2, Trash2, X, Save, Calendar, User, DollarSign, Clock
+    Edit2, Trash2, X, Save, Calendar, User, DollarSign, Clock,
+    Play, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDate } from '../../../utils/dateUtils';
 
 interface Service {
     type: string;
@@ -28,7 +30,7 @@ interface Store {
 interface Booking {
     id: string;
     userName: string;
-    serviceName: string;
+    serviceLabel: string;
     weight: number;
     totalPrice: number;
     status: string;
@@ -300,6 +302,33 @@ export default function SellerDashboard() {
         setEditingStore(null);
     };
 
+    // Handle order status update
+    const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res = await fetch('http://localhost:3000/graphql-booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    query: `mutation UpdateBookingStatus($input: UpdateBookingStatusInput!) {
+                        updateBookingStatus(input: $input) { id status }
+                    }`,
+                    variables: { input: { id: bookingId, status: newStatus } }
+                })
+            });
+            const data = await res.json();
+            if (data.errors) throw new Error(data.errors[0].message);
+
+            toast.success(`Order status updated to ${newStatus}`);
+            // Refresh bookings
+            fetchBookingsAndPayments();
+        } catch (err: any) {
+            toast.error('Failed to update status: ' + err.message);
+        }
+    };
+
     const formatCurrency = (amount: number) => {
         return `Rp ${amount.toLocaleString('id-ID')}`;
     };
@@ -309,7 +338,6 @@ export default function SellerDashboard() {
             'PENDING': 'bg-yellow-100 text-yellow-800',
             'CONFIRMED': 'bg-blue-100 text-blue-800',
             'PROCESSING': 'bg-purple-100 text-purple-800',
-            'READY': 'bg-green-100 text-green-800',
             'COMPLETED': 'bg-gray-100 text-gray-800',
             'CANCELLED': 'bg-red-100 text-red-800',
             'PAID': 'bg-green-100 text-green-800'
@@ -470,34 +498,58 @@ export default function SellerDashboard() {
                                     <table className="w-full">
                                         <thead className="bg-gray-50">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Weight</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Weight</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
                                             {allBookings.map((booking) => (
                                                 <tr key={booking.id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 text-sm text-gray-900 flex items-center gap-2">
-                                                        <User size={16} className="text-gray-400" />
-                                                        {booking.userName}
+                                                    <td className="px-4 py-4 text-sm text-gray-900">
+                                                        <div className="flex items-center gap-2">
+                                                            <User size={16} className="text-gray-400" />
+                                                            {booking.userName}
+                                                        </div>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.storeName || '-'}</td>
-                                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.serviceName || '-'}</td>
-                                                    <td className="px-6 py-4 text-sm text-gray-600">{booking.weight} kg</td>
-                                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{formatCurrency(booking.totalPrice)}</td>
-                                                    <td className="px-6 py-4">
+                                                    <td className="px-4 py-4 text-sm text-gray-600">{booking.storeName || '-'}</td>
+                                                    <td className="px-4 py-4 text-sm text-gray-600">{booking.serviceLabel || '-'}</td>
+                                                    <td className="px-4 py-4 text-sm text-gray-600">{booking.weight} kg</td>
+                                                    <td className="px-4 py-4 text-sm font-medium text-gray-900">{formatCurrency(booking.totalPrice)}</td>
+                                                    <td className="px-4 py-4">
                                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(booking.status)}`}>
                                                             {booking.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500 flex items-center gap-1">
-                                                        <Calendar size={14} />
-                                                        {new Date(booking.checkInDate).toLocaleDateString('id-ID')}
+                                                    <td className="px-4 py-4 text-sm text-gray-500">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar size={14} />
+                                                            {formatDate(booking.checkInDate)}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' ? (
+                                                            <select
+                                                                value={booking.status}
+                                                                onChange={(e) => handleUpdateStatus(booking.id, e.target.value)}
+                                                                className="px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#FF385C] focus:border-transparent cursor-pointer"
+                                                            >
+                                                                <option value="PENDING" disabled={booking.status !== 'PENDING'}>Pending</option>
+                                                                <option value="CONFIRMED" disabled={booking.status !== 'PENDING' && booking.status !== 'CONFIRMED'}>Confirmed</option>
+                                                                <option value="PROCESSING" disabled={booking.status === 'COMPLETED'}>Processing</option>
+                                                                <option value="COMPLETED">Completed</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${booking.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                                }`}>
+                                                                {booking.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -549,9 +601,11 @@ export default function SellerDashboard() {
                                                             {payment.status}
                                                         </span>
                                                     </td>
-                                                    <td className="px-6 py-4 text-sm text-gray-500 flex items-center gap-1">
-                                                        <Clock size={14} />
-                                                        {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('id-ID') : '-'}
+                                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock size={14} />
+                                                            {formatDate(payment.paidAt)}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}

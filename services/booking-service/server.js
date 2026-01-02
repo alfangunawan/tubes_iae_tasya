@@ -80,6 +80,12 @@ const typeDefs = gql`
 
 // --- Resolvers ---
 const resolvers = {
+    // Field resolvers for Booking type to ensure proper date serialization
+    Booking: {
+        checkInDate: (parent) => parent.checkInDate ? new Date(parent.checkInDate).toISOString() : null,
+        createdAt: (parent) => parent.createdAt ? new Date(parent.createdAt).toISOString() : null,
+        updatedAt: (parent) => parent.updatedAt ? new Date(parent.updatedAt).toISOString() : null,
+    },
     Query: {
         bookings: async () => {
             return await Booking.find().sort({ createdAt: -1 });

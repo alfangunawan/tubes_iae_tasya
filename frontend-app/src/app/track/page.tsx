@@ -22,8 +22,7 @@ const STATUS_CONFIG: Record<string, { color: string; bgColor: string; icon: any;
     PENDING: { color: 'text-yellow-700', bgColor: 'bg-yellow-100', icon: Clock, label: 'Pending' },
     CONFIRMED: { color: 'text-blue-700', bgColor: 'bg-blue-100', icon: CheckCircle, label: 'Confirmed' },
     PROCESSING: { color: 'text-purple-700', bgColor: 'bg-purple-100', icon: Loader, label: 'Processing' },
-    READY: { color: 'text-green-700', bgColor: 'bg-green-100', icon: Package, label: 'Ready for Pickup' },
-    COMPLETED: { color: 'text-gray-700', bgColor: 'bg-gray-100', icon: CheckCircle, label: 'Completed' },
+    COMPLETED: { color: 'text-green-700', bgColor: 'bg-green-100', icon: CheckCircle, label: 'Completed' },
     CANCELLED: { color: 'text-red-700', bgColor: 'bg-red-100', icon: XCircle, label: 'Cancelled' }
 };
 
@@ -109,9 +108,13 @@ export default function TrackOrderPage() {
         }
     };
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string | null | undefined) => {
+        if (!dateString) return '-';
+
         try {
             const date = new Date(dateString);
+            if (isNaN(date.getTime())) return '-';
+
             return date.toLocaleDateString('id-ID', {
                 weekday: 'short',
                 day: 'numeric',
@@ -119,7 +122,7 @@ export default function TrackOrderPage() {
                 year: 'numeric'
             });
         } catch {
-            return dateString;
+            return '-';
         }
     };
 
@@ -229,8 +232,8 @@ export default function TrackOrderPage() {
                                     {/* Progress Bar */}
                                     <div className="mt-6 pt-4 border-t border-gray-100">
                                         <div className="flex justify-between mb-2">
-                                            {['PENDING', 'CONFIRMED', 'PROCESSING', 'READY', 'COMPLETED'].map((step, idx) => {
-                                                const steps = ['PENDING', 'CONFIRMED', 'PROCESSING', 'READY', 'COMPLETED'];
+                                            {['PENDING', 'CONFIRMED', 'PROCESSING', 'COMPLETED'].map((step, idx) => {
+                                                const steps = ['PENDING', 'CONFIRMED', 'PROCESSING', 'COMPLETED'];
                                                 const currentIdx = steps.indexOf(booking.status);
                                                 const isActive = idx <= currentIdx && booking.status !== 'CANCELLED';
                                                 const isCancelled = booking.status === 'CANCELLED';
@@ -238,7 +241,7 @@ export default function TrackOrderPage() {
                                                 return (
                                                     <div key={step} className="flex flex-col items-center flex-1">
                                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isCancelled ? 'bg-red-100 text-red-600' :
-                                                                isActive ? 'bg-[#FF385C] text-white' : 'bg-gray-200 text-gray-400'
+                                                            isActive ? 'bg-[#FF385C] text-white' : 'bg-gray-200 text-gray-400'
                                                             }`}>
                                                             {idx + 1}
                                                         </div>

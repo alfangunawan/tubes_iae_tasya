@@ -1,8 +1,1 @@
-{
-  "/login/page": "app/login/page.js",
-  "/become-seller/page": "app/become-seller/page.js",
-  "/register/page": "app/register/page.js",
-  "/store/[id]/page": "app/store/[id]/page.js",
-  "/page": "app/page.js",
-  "/seller/dashboard/page": "app/seller/dashboard/page.js"
-}
+{}
