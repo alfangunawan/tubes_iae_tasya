@@ -145,6 +145,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Helper function to fix body for proxied requests when express.json() already parsed it
+const fixRequestBody = (proxyReq, req) => {
+  if (req.body && Object.keys(req.body).length > 0) {
+    const bodyData = JSON.stringify(req.body);
+    proxyReq.setHeader('Content-Type', 'application/json');
+    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+    proxyReq.write(bodyData);
+  }
+};
+
 // Proxy configuration for REST API
 const restApiProxy = createProxyMiddleware({
   target: process.env.REST_API_URL || 'http://user-service:3001',
@@ -164,6 +174,8 @@ const restApiProxy = createProxyMiddleware({
     if (req.headers['user']) {
       proxyReq.setHeader('user', req.headers['user']);
     }
+    // Fix body forwarding when express.json() has already parsed it
+    fixRequestBody(proxyReq, req);
     console.log(`[User Service] ${req.method} ${req.url}`);
   }
 });
@@ -187,6 +199,8 @@ const paymentServiceProxy = createProxyMiddleware({
     if (req.headers['user']) {
       proxyReq.setHeader('user', req.headers['user']);
     }
+    // Fix body forwarding when express.json() has already parsed it
+    fixRequestBody(proxyReq, req);
     console.log(`[Payment Service] ${req.method} ${req.url}`);
   }
 });
@@ -209,6 +223,8 @@ const storeServiceProxy = createProxyMiddleware({
     if (req.headers['user']) {
       proxyReq.setHeader('user', req.headers['user']);
     }
+    // Fix body forwarding when express.json() has already parsed it
+    fixRequestBody(proxyReq, req);
     console.log(`[Store Service] ${req.method} ${req.url}`);
   }
 });
@@ -231,6 +247,8 @@ const bookingServiceProxy = createProxyMiddleware({
     if (req.headers['user']) {
       proxyReq.setHeader('user', req.headers['user']);
     }
+    // Fix body forwarding when express.json() has already parsed it
+    fixRequestBody(proxyReq, req);
     console.log(`[Booking Service] ${req.method} ${req.url}`);
   }
 });

@@ -74,7 +74,7 @@ export default function SellerDashboard() {
         name: '',
         description: '',
         address: '',
-        services: [{ type: 'regular', price: 7000, label: 'Regular Wash' }]
+        services: [{ type: 'washing', price: 7000, label: 'Washing' }]
     });
 
     // Extra data for tabs
@@ -265,11 +265,27 @@ export default function SellerDashboard() {
 
     const openEditModal = (store: Store) => {
         setEditingStore(store);
+        // Map existing services to match dropdown options
+        const mappedServices = (store.services || []).map(s => {
+            // Map legacy or different type names to standard dropdown values
+            const typeMap: Record<string, string> = {
+                'regular': 'washing',
+                'Regular Wash': 'washing',
+                'Washing': 'washing',
+                'Dry Clean': 'dry_clean',
+                'Ironing': 'ironing',
+                'Shoes': 'shoes',
+                'Carpets': 'carpets',
+                'Express': 'express'
+            };
+            const mappedType = typeMap[s.type] || typeMap[s.label] || s.type;
+            return { ...s, type: mappedType };
+        });
         setStoreForm({
             name: store.name,
             description: store.description,
             address: store.address,
-            services: store.services || [{ type: 'regular', price: 7000, label: 'Regular Wash' }]
+            services: mappedServices.length > 0 ? mappedServices : [{ type: 'washing', price: 7000, label: 'Washing' }]
         });
         setShowStoreModal(true);
     };
@@ -279,7 +295,7 @@ export default function SellerDashboard() {
             name: '',
             description: '',
             address: '',
-            services: [{ type: 'regular', price: 7000, label: 'Regular Wash' }]
+            services: [{ type: 'washing', price: 7000, label: 'Washing' }]
         });
         setEditingStore(null);
     };
@@ -593,17 +609,33 @@ export default function SellerDashboard() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Services</label>
                                 {storeForm.services.map((service, idx) => (
                                     <div key={idx} className="flex gap-2 mb-2">
-                                        <input
-                                            type="text"
-                                            value={service.label}
+                                        <select
+                                            value={service.type}
                                             onChange={(e) => {
                                                 const newServices = [...storeForm.services];
-                                                newServices[idx].label = e.target.value;
+                                                const selectedType = e.target.value;
+                                                const labels: Record<string, string> = {
+                                                    'washing': 'Washing',
+                                                    'dry_clean': 'Dry Clean',
+                                                    'ironing': 'Ironing',
+                                                    'shoes': 'Shoes',
+                                                    'carpets': 'Carpets',
+                                                    'express': 'Express'
+                                                };
+                                                newServices[idx].type = selectedType;
+                                                newServices[idx].label = labels[selectedType] || selectedType;
                                                 setStoreForm({ ...storeForm, services: newServices });
                                             }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                            placeholder="Service name"
-                                        />
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
+                                        >
+                                            <option value="">Select Service</option>
+                                            <option value="washing">Washing</option>
+                                            <option value="dry_clean">Dry Clean</option>
+                                            <option value="ironing">Ironing</option>
+                                            <option value="shoes">Shoes</option>
+                                            <option value="carpets">Carpets</option>
+                                            <option value="express">Express</option>
+                                        </select>
                                         <input
                                             type="number"
                                             value={service.price}
@@ -612,8 +644,9 @@ export default function SellerDashboard() {
                                                 newServices[idx].price = Number(e.target.value);
                                                 setStoreForm({ ...storeForm, services: newServices });
                                             }}
-                                            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                            placeholder="Price"
+                                            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
+                                            placeholder="Price (Rp)"
+                                            min="0"
                                         />
                                         {storeForm.services.length > 1 && (
                                             <button
@@ -629,7 +662,7 @@ export default function SellerDashboard() {
                                     </div>
                                 ))}
                                 <button
-                                    onClick={() => setStoreForm({ ...storeForm, services: [...storeForm.services, { type: 'custom', price: 0, label: '' }] })}
+                                    onClick={() => setStoreForm({ ...storeForm, services: [...storeForm.services, { type: '', price: 0, label: '' }] })}
                                     className="text-sm text-[#FF385C] hover:underline"
                                 >
                                     + Add Service
