@@ -3,3 +3,4 @@ yarn.lock
 .env
 .env.local
 .DS_Store
+frontend-app/.next
