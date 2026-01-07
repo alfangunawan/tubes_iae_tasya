@@ -125,8 +125,10 @@ app.use(express.json());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  max: 1000, // limit each IP to 1000 requests per windowMs (increased for development)
+  message: { error: 'Too many requests', message: 'Too many requests from this IP, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(limiter);
 
@@ -273,9 +275,16 @@ app.get('/api/seller/dashboard', verifyToken, async (req, res) => {
         myStores(ownerId: $ownerId) {
           id
           name
+          description
           address
           rating
           reviewCount
+          images
+          services {
+            type
+            price
+            label
+          }
         }
       }
     `;

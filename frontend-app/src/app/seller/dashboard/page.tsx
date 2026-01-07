@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     Store as StoreIcon, Package, TrendingUp, Plus, RefreshCw,
     Edit2, Trash2, X, Save, Calendar, User, DollarSign, Clock,
-    Play, CheckCircle2
+    Play, CheckCircle2, ImagePlus, Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '../../../utils/dateUtils';
@@ -25,6 +25,7 @@ interface Store {
     rating: number;
     reviewCount: number;
     services: Service[];
+    images: string[];
 }
 
 interface Booking {
@@ -76,7 +77,8 @@ export default function SellerDashboard() {
         name: '',
         description: '',
         address: '',
-        services: [{ type: 'washing', price: 7000, label: 'Washing' }]
+        services: [{ type: 'washing', price: 7000, label: 'Washing' }],
+        images: [] as string[]
     });
 
     // Extra data for tabs
@@ -189,7 +191,7 @@ export default function SellerDashboard() {
                         input: {
                             ...storeForm,
                             ownerId: user.id,
-                            images: []
+                            images: storeForm.images.filter(img => img.trim() !== '')
                         }
                     }
                 })
@@ -222,7 +224,8 @@ export default function SellerDashboard() {
                             name: storeForm.name,
                             description: storeForm.description,
                             address: storeForm.address,
-                            services: storeForm.services
+                            services: storeForm.services,
+                            images: storeForm.images.filter(img => img.trim() !== '')
                         }
                     }
                 })
@@ -287,7 +290,8 @@ export default function SellerDashboard() {
             name: store.name,
             description: store.description,
             address: store.address,
-            services: mappedServices.length > 0 ? mappedServices : [{ type: 'washing', price: 7000, label: 'Washing' }]
+            services: mappedServices.length > 0 ? mappedServices : [{ type: 'washing', price: 7000, label: 'Washing' }],
+            images: store.images || []
         });
         setShowStoreModal(true);
     };
@@ -297,7 +301,8 @@ export default function SellerDashboard() {
             name: '',
             description: '',
             address: '',
-            services: [{ type: 'washing', price: 7000, label: 'Washing' }]
+            services: [{ type: 'washing', price: 7000, label: 'Washing' }],
+            images: []
         });
         setEditingStore(null);
     };
@@ -658,6 +663,83 @@ export default function SellerDashboard() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
                                     placeholder="Jl. Example No. 123"
                                 />
+                            </div>
+                            {/* Images Section */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <ImagePlus size={16} />
+                                        Store Images
+                                    </div>
+                                </label>
+                                <p className="text-xs text-gray-500 mb-3">Add up to 5 image URLs for your store gallery</p>
+
+                                {/* Image Previews */}
+                                {storeForm.images.length > 0 && (
+                                    <div className="grid grid-cols-5 gap-2 mb-3">
+                                        {storeForm.images.map((img, idx) => (
+                                            img.trim() && (
+                                                <div key={idx} className="relative group">
+                                                    <img
+                                                        src={img}
+                                                        alt={`Store image ${idx + 1}`}
+                                                        className="w-full h-16 object-cover rounded-lg border border-gray-200"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100x100?text=Error';
+                                                        }}
+                                                    />
+                                                    <button
+                                                        onClick={() => {
+                                                            const newImages = storeForm.images.filter((_, i) => i !== idx);
+                                                            setStoreForm({ ...storeForm, images: newImages });
+                                                        }}
+                                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            )
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Image URL Inputs */}
+                                {storeForm.images.map((img, idx) => (
+                                    <div key={idx} className="flex gap-2 mb-2">
+                                        <div className="flex items-center px-3 bg-gray-100 rounded-l-lg border border-r-0 border-gray-300">
+                                            <Link2 size={14} className="text-gray-500" />
+                                        </div>
+                                        <input
+                                            type="url"
+                                            value={img}
+                                            onChange={(e) => {
+                                                const newImages = [...storeForm.images];
+                                                newImages[idx] = e.target.value;
+                                                setStoreForm({ ...storeForm, images: newImages });
+                                            }}
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg text-sm focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
+                                            placeholder="https://example.com/image.jpg"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newImages = storeForm.images.filter((_, i) => i !== idx);
+                                                setStoreForm({ ...storeForm, images: newImages });
+                                            }}
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {storeForm.images.length < 5 && (
+                                    <button
+                                        onClick={() => setStoreForm({ ...storeForm, images: [...storeForm.images, ''] })}
+                                        className="text-sm text-[#FF385C] hover:underline flex items-center gap-1"
+                                    >
+                                        <Plus size={14} /> Add Image URL
+                                    </button>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Services</label>

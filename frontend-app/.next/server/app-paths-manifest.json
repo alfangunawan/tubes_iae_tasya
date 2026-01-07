@@ -1,1 +1,4 @@
-{}
+{
+  "/not-found": "app/not-found.js",
+  "/seller/dashboard/page": "app/seller/dashboard/page.js"
+}
