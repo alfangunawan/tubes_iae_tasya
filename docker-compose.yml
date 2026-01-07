@@ -87,6 +87,8 @@ services:
       - PORT=4001
       - NODE_ENV=development
       - DATABASE_URL=postgresql://laundry_user:laundry_pass@postgres:5432/laundry_stores
+    volumes:
+      - store_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -154,6 +156,7 @@ services:
 volumes:
   postgres_data:
   mongodb_data:
+  store_uploads:
 
 
 networks:

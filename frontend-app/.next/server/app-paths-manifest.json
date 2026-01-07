@@ -1,4 +1,9 @@
 {
-  "/not-found": "app/not-found.js",
-  "/seller/dashboard/page": "app/seller/dashboard/page.js"
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/bookings/page": "app/dashboard/bookings/page.js",
+  "/dashboard/payments/page": "app/dashboard/payments/page.js",
+  "/dashboard/stores/page": "app/dashboard/stores/page.js",
+  "/dashboard/users/page": "app/dashboard/users/page.js"
 }

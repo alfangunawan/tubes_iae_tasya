@@ -85,10 +85,16 @@ const typeDefs = gql`
     reason: String!
   }
 
+  input UpdatePaymentStatusInput {
+    paymentId: ID!
+    status: PaymentStatus!
+  }
+
   type Mutation {
     createPayment(input: CreatePaymentInput!): Payment
     processPayment(input: ProcessPaymentInput!): Payment
     refundPayment(input: RefundPaymentInput!): Payment
+    updatePaymentStatus(input: UpdatePaymentStatusInput!): Payment
   }
 `;
 
@@ -171,6 +177,28 @@ const resolvers = {
             await payment.save();
 
             console.log(`💸 Payment ${payment.invoiceNumber} refunded: ${input.reason}`);
+            return payment;
+        },
+        updatePaymentStatus: async (_, { input }) => {
+            const payment = await Payment.findById(input.paymentId);
+            if (!payment) {
+                throw new Error('Payment not found');
+            }
+
+            const validStatuses = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'EXPIRED'];
+            if (!validStatuses.includes(input.status)) {
+                throw new Error('Invalid status');
+            }
+
+            const oldStatus = payment.status;
+            payment.status = input.status;
+
+            if (input.status === 'PAID' && oldStatus !== 'PAID') {
+                payment.paidAt = new Date();
+            }
+
+            await payment.save();
+            console.log(`📝 Payment ${payment.invoiceNumber} status changed: ${oldStatus} → ${input.status}`);
             return payment;
         }
     }

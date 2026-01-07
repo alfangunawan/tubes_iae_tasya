@@ -106,8 +106,19 @@ const optionalVerifyToken = (req, res, next) => {
   next();
 };
 
-// Security middleware
-app.use(helmet());
+// Security middleware with relaxed settings for uploads
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "http://localhost:3000", "http://localhost:3002", "https:", "blob:"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+    }
+  }
+}));
 
 // CORS configuration
 app.use(cors({
@@ -254,6 +265,47 @@ const bookingServiceProxy = createProxyMiddleware({
     console.log(`[Booking Service] ${req.method} ${req.url}`);
   }
 });
+
+// Proxy configuration for Store Service - Image Upload (no body parsing needed for multipart)
+const storeUploadProxy = createProxyMiddleware({
+  target: process.env.STORE_API_URL || 'http://store-service:4001',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/store/upload': '/upload',
+  },
+  onError: (err, req, res) => {
+    console.error('Store Upload Proxy Error:', err.message);
+    res.status(500).json({
+      error: 'Store Service unavailable',
+      message: err.message
+    });
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[Store Service Upload] ${req.method} ${req.url}`);
+  }
+});
+
+// Proxy configuration for Store Service - Static files (uploaded images)
+const storeStaticProxy = createProxyMiddleware({
+  target: process.env.STORE_API_URL || 'http://store-service:4001',
+  changeOrigin: true,
+  onError: (err, req, res) => {
+    console.error('Store Static Proxy Error:', err.message);
+    res.status(500).json({
+      error: 'Store Service unavailable',
+      message: err.message
+    });
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`[Store Service Static] ${req.method} ${req.url}`);
+  }
+});
+
+// Store upload routes (multipart - must be before express.json())
+app.use('/api/store/upload', verifyToken, storeUploadProxy);
+
+// Static files for uploaded images (public access)
+app.use('/uploads', storeStaticProxy);
 
 // Public routes (no authentication required)
 app.use('/api/auth', restApiProxy);

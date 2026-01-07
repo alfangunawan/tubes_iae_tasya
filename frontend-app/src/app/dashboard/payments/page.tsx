@@ -46,6 +46,7 @@ interface Payment {
 }
 
 const PAYMENT_METHODS = ['BANK_TRANSFER', 'E_WALLET', 'CREDIT_CARD', 'CASH']
+const PAYMENT_STATUSES = ['PENDING', 'PAID', 'FAILED', 'REFUNDED', 'EXPIRED']
 
 export default function PaymentsPage() {
     const [payments, setPayments] = useState<Payment[]>([])
@@ -128,6 +129,7 @@ export default function PaymentsPage() {
                             userName: formData.userName,
                             userEmail: formData.userEmail,
                             storeName: formData.storeName,
+                            storeId: 'manual',
                             serviceLabel: 'Manual Payment',
                             weight: 1,
                             amount: formData.amount,
@@ -146,6 +148,37 @@ export default function PaymentsPage() {
             fetchPayments()
         } catch (err: any) {
             toast.error('Failed to create payment: ' + err.message)
+        }
+    }
+
+    const updatePaymentStatus = async (paymentId: string, newStatus: string) => {
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        try {
+            const res = await fetch('http://localhost:3000/graphql-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation UpdatePaymentStatus($input: UpdatePaymentStatusInput!) {
+                            updatePaymentStatus(input: $input) { id status }
+                        }
+                    `,
+                    variables: { input: { paymentId, status: newStatus } }
+                })
+            })
+
+            const { errors } = await res.json()
+            if (errors) throw new Error(errors[0].message)
+
+            toast.success(`Status updated to ${newStatus}`)
+            fetchPayments()
+        } catch (err: any) {
+            toast.error('Failed to update status: ' + err.message)
         }
     }
 
@@ -202,6 +235,17 @@ export default function PaymentsPage() {
             CASH: 'Cash',
         }
         return labels[method] || method
+    }
+
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '-'
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return '-'
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        })
     }
 
     const totalRevenue = payments.filter(p => p.status === 'PAID').reduce((sum, p) => sum + p.amount, 0)
@@ -361,12 +405,26 @@ export default function PaymentsPage() {
                                         <TableCell className="font-medium">Rp {payment.amount.toLocaleString()}</TableCell>
                                         <TableCell>{getMethodLabel(payment.paymentMethod)}</TableCell>
                                         <TableCell>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(payment.status)}`}>
-                                                {payment.status}
-                                            </span>
+                                            <Select
+                                                value={payment.status}
+                                                onValueChange={(value) => updatePaymentStatus(payment.id, value)}
+                                            >
+                                                <SelectTrigger className={`w-[120px] h-8 ${getStatusBadge(payment.status)}`}>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {PAYMENT_STATUSES.map((status) => (
+                                                        <SelectItem key={status} value={status}>
+                                                            <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadge(status)}`}>
+                                                                {status}
+                                                            </span>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </TableCell>
                                         <TableCell>
-                                            {new Date(payment.createdAt).toLocaleDateString()}
+                                            {formatDate(payment.createdAt)}
                                         </TableCell>
                                         <TableCell>
                                             {payment.status === 'PAID' && (

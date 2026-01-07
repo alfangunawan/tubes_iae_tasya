@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     Store as StoreIcon, Package, TrendingUp, Plus, RefreshCw,
     Edit2, Trash2, X, Save, Calendar, User, DollarSign, Clock,
-    Play, CheckCircle2, ImagePlus, Link2
+    Play, CheckCircle2, ImagePlus, Link2, Upload, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '../../../utils/dateUtils';
@@ -305,6 +305,89 @@ export default function SellerDashboard() {
             images: []
         });
         setEditingStore(null);
+    };
+
+    // Image upload state
+    const [uploading, setUploading] = useState(false);
+
+    // Handle image file upload
+    const handleImageUpload = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Please login to upload images');
+            return;
+        }
+
+        // Check max images limit
+        if (storeForm.images.length + files.length > 5) {
+            toast.error('Maximum 5 images allowed');
+            return;
+        }
+
+        setUploading(true);
+        const uploadedUrls: string[] = [];
+
+        try {
+            for (const file of Array.from(files)) {
+                // Validate file type
+                if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+                    toast.error(`Invalid file type: ${file.name}. Only JPEG, PNG, WebP, and GIF are allowed.`);
+                    continue;
+                }
+
+                // Validate file size (5MB max)
+                if (file.size > 5 * 1024 * 1024) {
+                    toast.error(`File too large: ${file.name}. Maximum size is 5MB.`);
+                    continue;
+                }
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const res = await fetch('http://localhost:3000/api/store/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                // Use full URL for the uploaded image
+                const fullUrl = `http://localhost:3000${data.imageUrl}`;
+                uploadedUrls.push(fullUrl);
+            }
+
+            if (uploadedUrls.length > 0) {
+                setStoreForm(prev => ({
+                    ...prev,
+                    images: [...prev.images, ...uploadedUrls]
+                }));
+                toast.success(`${uploadedUrls.length} image(s) uploaded successfully!`);
+            }
+        } catch (err: any) {
+            console.error('Upload error:', err);
+            toast.error('Failed to upload image: ' + err.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // Handle drag and drop
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleImageUpload(e.dataTransfer.files);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
     };
 
     // Handle order status update
@@ -672,7 +755,7 @@ export default function SellerDashboard() {
                                         Store Images
                                     </div>
                                 </label>
-                                <p className="text-xs text-gray-500 mb-3">Add up to 5 image URLs for your store gallery</p>
+                                <p className="text-xs text-gray-500 mb-3">Upload images or add URLs (max 5 images, 5MB each)</p>
 
                                 {/* Image Previews */}
                                 {storeForm.images.length > 0 && (
@@ -703,42 +786,90 @@ export default function SellerDashboard() {
                                     </div>
                                 )}
 
-                                {/* Image URL Inputs */}
-                                {storeForm.images.map((img, idx) => (
-                                    <div key={idx} className="flex gap-2 mb-2">
+                                {/* Drag & Drop Upload Area */}
+                                {storeForm.images.length < 5 && (
+                                    <div
+                                        onDrop={handleDrop}
+                                        onDragOver={handleDragOver}
+                                        className={`border-2 border-dashed rounded-lg p-4 text-center mb-3 transition-colors ${uploading ? 'border-gray-300 bg-gray-50' : 'border-gray-300 hover:border-[#FF385C] hover:bg-red-50'
+                                            }`}
+                                    >
+                                        {uploading ? (
+                                            <div className="flex items-center justify-center gap-2 text-gray-500">
+                                                <Loader2 size={20} className="animate-spin" />
+                                                <span>Uploading...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Upload size={24} className="mx-auto text-gray-400 mb-2" />
+                                                <p className="text-sm text-gray-600 mb-2">
+                                                    Drag & drop images here, or
+                                                </p>
+                                                <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF385C] hover:bg-[#E31C5F] text-white text-sm rounded-lg cursor-pointer transition">
+                                                    <Upload size={14} />
+                                                    Browse Files
+                                                    <input
+                                                        type="file"
+                                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                                        multiple
+                                                        onChange={(e) => handleImageUpload(e.target.files)}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                                <p className="text-xs text-gray-400 mt-2">JPEG, PNG, WebP, GIF (max 5MB)</p>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Divider */}
+                                <div className="flex items-center my-3">
+                                    <div className="flex-1 h-px bg-gray-200"></div>
+                                    <span className="px-3 text-xs text-gray-400">or add URL</span>
+                                    <div className="flex-1 h-px bg-gray-200"></div>
+                                </div>
+
+                                {/* Image URL Input */}
+                                {storeForm.images.length < 5 && (
+                                    <div className="flex gap-2">
                                         <div className="flex items-center px-3 bg-gray-100 rounded-l-lg border border-r-0 border-gray-300">
                                             <Link2 size={14} className="text-gray-500" />
                                         </div>
                                         <input
                                             type="url"
-                                            value={img}
-                                            onChange={(e) => {
-                                                const newImages = [...storeForm.images];
-                                                newImages[idx] = e.target.value;
-                                                setStoreForm({ ...storeForm, images: newImages });
-                                            }}
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg text-sm focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
                                             placeholder="https://example.com/image.jpg"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg text-sm focus:ring-2 focus:ring-[#FF385C] focus:border-transparent"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    const input = e.target as HTMLInputElement;
+                                                    if (input.value.trim()) {
+                                                        setStoreForm(prev => ({
+                                                            ...prev,
+                                                            images: [...prev.images, input.value.trim()]
+                                                        }));
+                                                        input.value = '';
+                                                    }
+                                                }
+                                            }}
                                         />
                                         <button
-                                            onClick={() => {
-                                                const newImages = storeForm.images.filter((_, i) => i !== idx);
-                                                setStoreForm({ ...storeForm, images: newImages });
+                                            type="button"
+                                            onClick={(e) => {
+                                                const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                                                if (input.value.trim()) {
+                                                    setStoreForm(prev => ({
+                                                        ...prev,
+                                                        images: [...prev.images, input.value.trim()]
+                                                    }));
+                                                    input.value = '';
+                                                }
                                             }}
-                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition"
                                         >
-                                            <Trash2 size={16} />
+                                            Add
                                         </button>
                                     </div>
-                                ))}
-
-                                {storeForm.images.length < 5 && (
-                                    <button
-                                        onClick={() => setStoreForm({ ...storeForm, images: [...storeForm.images, ''] })}
-                                        className="text-sm text-[#FF385C] hover:underline flex items-center gap-1"
-                                    >
-                                        <Plus size={14} /> Add Image URL
-                                    </button>
                                 )}
                             </div>
                             <div>

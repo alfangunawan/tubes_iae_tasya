@@ -19,7 +19,18 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogFooter,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { RefreshCw, Plus, Star, Trash2, Edit } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -38,7 +49,15 @@ export default function StoresPage() {
     const [stores, setStores] = useState<Store[]>([])
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [selectedStore, setSelectedStore] = useState<Store | null>(null)
     const [formData, setFormData] = useState({
+        name: '',
+        description: '',
+        address: ''
+    })
+    const [editFormData, setEditFormData] = useState({
         name: '',
         description: '',
         address: ''
@@ -132,6 +151,119 @@ export default function StoresPage() {
         }
     }
 
+    const openEditDialog = (store: Store) => {
+        setSelectedStore(store)
+        setEditFormData({
+            name: store.name,
+            description: store.description,
+            address: store.address
+        })
+        setEditDialogOpen(true)
+    }
+
+    const updateStore = async () => {
+        if (!selectedStore) return
+
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        if (!editFormData.name || !editFormData.address) {
+            toast.warning('Please fill in required fields')
+            return
+        }
+
+        try {
+            const res = await fetch('http://localhost:3000/graphql-store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation UpdateStore($id: ID!, $input: UpdateStoreInput!) {
+                            updateStore(id: $id, input: $input) {
+                                id
+                                name
+                            }
+                        }
+                    `,
+                    variables: {
+                        id: selectedStore.id,
+                        input: {
+                            name: editFormData.name,
+                            description: editFormData.description,
+                            address: editFormData.address
+                        }
+                    }
+                })
+            })
+
+            const { data, errors } = await res.json()
+            if (errors) throw new Error(errors[0].message)
+
+            toast.success('Store updated successfully')
+            setEditDialogOpen(false)
+            setSelectedStore(null)
+            fetchStores()
+        } catch (err: any) {
+            toast.error('Failed to update store: ' + err.message)
+        }
+    }
+
+    const openDeleteDialog = (store: Store) => {
+        setSelectedStore(store)
+        setDeleteDialogOpen(true)
+    }
+
+    const deleteStore = async () => {
+        if (!selectedStore) return
+
+        const token = localStorage.getItem('token')
+        if (!token) return
+
+        try {
+            const res = await fetch('http://localhost:3000/graphql-store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    query: `
+                        mutation DeleteStore($id: ID!) {
+                            deleteStore(id: $id)
+                        }
+                    `,
+                    variables: {
+                        id: selectedStore.id
+                    }
+                })
+            })
+
+            const { data, errors } = await res.json()
+            if (errors) throw new Error(errors[0].message)
+
+            toast.success('Store deleted successfully')
+            setDeleteDialogOpen(false)
+            setSelectedStore(null)
+            fetchStores()
+        } catch (err: any) {
+            toast.error('Failed to delete store: ' + err.message)
+        }
+    }
+
+    const formatDate = (dateString: string) => {
+        if (!dateString) return '-'
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return '-'
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        })
+    }
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
@@ -218,6 +350,7 @@ export default function StoresPage() {
                                     <TableHead>Rating</TableHead>
                                     <TableHead>Reviews</TableHead>
                                     <TableHead>Created</TableHead>
+                                    <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -238,7 +371,29 @@ export default function StoresPage() {
                                         </TableCell>
                                         <TableCell>{store.reviewCount || 0}</TableCell>
                                         <TableCell>
-                                            {new Date(store.createdAt).toLocaleDateString()}
+                                            {formatDate(store.createdAt)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                    onClick={() => openEditDialog(store)}
+                                                >
+                                                    <Edit className="h-4 w-4 mr-1" />
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    onClick={() => openDeleteDialog(store)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-1" />
+                                                    Delete
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -247,6 +402,74 @@ export default function StoresPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Edit Store Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Store</DialogTitle>
+                        <DialogDescription>Update store information</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-name">Store Name *</Label>
+                            <Input
+                                id="edit-name"
+                                value={editFormData.name}
+                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                placeholder="e.g. Clean & Fresh Laundry"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-description">Description</Label>
+                            <Input
+                                id="edit-description"
+                                value={editFormData.description}
+                                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                                placeholder="Brief description of the store"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-address">Address *</Label>
+                            <Input
+                                id="edit-address"
+                                value={editFormData.address}
+                                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                                placeholder="Full store address"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={updateStore} className="bg-[#FF385C] hover:bg-[#E31C5F]">
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Store</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete &quot;{selectedStore?.name}&quot;? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={deleteStore}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }
